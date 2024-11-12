@@ -2,47 +2,51 @@
 
 using namespace fatum;
 
+void SceneManager::build() {
+	std::ranges::sort(_scenes_quened, [](size_t pt, size_t nt)->bool {return pt < nt; }, &scene_info::index);
+
+	for (scene_info& sc_info : _scenes_quened) {
+		if (std::find_if(_render_scenes.begin(), _render_scenes.end(),
+			[&sc_info](auto& uniq) -> bool {return uniq->getName() == sc_info.name; }) != _render_scenes.end()) continue;
+		_render_scenes.push_back(sc_info.init(sc_info.name, _render_scenes.size(), *this));
+	}
+	if (_render_scene == UINT32_MAX) {
+		_render_scene = 0;
+		switchScene(0);
+	}
+	_scenes_quened.clear();
+}
+
 void SceneManager::operator()()
 {
 	if (_render_scene == UINT32_MAX) return;
 	
-	std::unique_ptr<IScene>& p_render_scene = _renders[_render_scene];
+	std::unique_ptr<IScene>& p_render_scene = _render_scenes[_render_scene];
 	p_render_scene->thisTime = std::chrono::high_resolution_clock::now();
-	/*for (unsigned int i = 1; i != VK_OEM_CLEAR; i++) {
-		if (!(GetKeyState(i) & 0x8000)) continue;
-		p_render_scene->_handler(input::Hook::Data{ input::Hook::KeyPressed, i });
-	}*/
 
+	glfwMakeContextCurrent(*_win);
 	glfwPollEvents();
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	p_render_scene->onPreDraw();
-	//p_render_scene->_handler(input::Hook::Data{ input::Hook::PreUpdate });
-	//p_render_scene->parent._handler(input::Hook::Data{ input::Hook::PreUpdate });
-	
 	for (object::IDrawable* obj : p_render_scene->listned) {
 		obj->onUpdate();
 	}
-
-
-
 	p_render_scene->onPostDraw();
-	//p_render_scene->_handler(input::Hook::PostRender);
-	//p_render_scene->parent._handler(input::Hook::PostRender);
 	
-	glfwSwapBuffers(_target_window);
+	glfwSwapBuffers(*_win);
 }
 
 void SceneManager::switchScene(uint8_t id)
 {
-	IScene* p_render_scene = _renders[_render_scene].get();
+	IScene* p_render_scene = _render_scenes[_render_scene].get();
 
 	if (!p_render_scene->onTryLeave(_render_scene, id)) return;
 
 	p_render_scene->onLeave();
 
 	_render_scene = id;
-	p_render_scene = _renders[_render_scene].get();
+	p_render_scene = _render_scenes[_render_scene].get();
 
 	if (p_render_scene->fisrt_frame) { p_render_scene->onFirst(); p_render_scene->fisrt_frame = false; }
 	p_render_scene->onEnter();

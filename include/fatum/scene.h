@@ -1,21 +1,18 @@
 #pragma once
-#include <string>
-#include <vector>
 #include <functional>
+#include <vector>
 #include <memory>
-#include <chrono>
-#include <thread>
-#include <algorithm>
-#include <ranges>
+#include <cstdint>
+#include <concepts>
 #include "drawable/object.h"
-#include "manager.h"
+#include "window.h"
 
 namespace fatum {
-
+	//TODO: вернусь к этому позже. Тут есть че поулучшать. \zerochar
 
 	class SceneManager;
 	class IScene;
-
+	class Window;
 	
 	namespace{
 		
@@ -33,47 +30,41 @@ namespace fatum {
 	}
 
 	class SceneManager {
+		std::vector<scene_info> _scenes_quened;
+		std::vector<std::unique_ptr<IScene>> _render_scenes;
 		
-		std::vector<std::unique_ptr<IScene>> _renders;
-		std::vector<scene_info> _sc_database;
-		//input::Hook::Handler _handler{};
-		Window& _target_window;
-
 		unsigned int _render_time = 0;
-
 		unsigned int _render_scene = UINT32_MAX;
+
+		Window* _win;
+
 	public:
 
 		void operator()();
 
-		void build() {
+		void switchScene(uint8_t id);
 
-			std::ranges::sort(_sc_database, [](size_t pt, size_t nt)->bool {return pt < nt; }, &scene_info::index);
 
-			for (scene_info& sc_info : _sc_database) {
-				if (std::find_if(_renders.begin(), _renders.end(),
-					[&sc_info](auto& uniq) -> bool {return uniq->getName() == sc_info.name; }) != _renders.end()) continue;
-				_renders.push_back(sc_info.init(sc_info.name, _renders.size(), *this));
-			}
-			if (_render_scene==UINT32_MAX){
-				_render_scene = 0;
-				switchScene(0);
-			}
-			_sc_database.clear();
-		}
-		
-		void switchScene(uint8_t id); 
+
+		void build();
 
 		template <std::derived_from<IScene> Tregistred>
 		void registerScene(std::string_view name, size_t prefered_index = 0Ui64) {
-			_sc_database.emplace_back(name, prefered_index,
+			_scenes_quened.emplace_back(name, prefered_index,
 				[](std::string_view n, size_t i, SceneManager& s) -> std::unique_ptr<IScene> {
 					return std::make_unique<Tregistred>(n, i, s);
 				}
 			);
 		}
 
-		SceneManager(Window& w) : _target_window(w){}
+
+		SceneManager& operator=(SceneManager&&) = delete;
+		SceneManager(SceneManager&&) = delete;
+
+		SceneManager& operator=(const SceneManager&) = default;
+		SceneManager(const SceneManager&) = default;
+
+		SceneManager(Window* w) : _win(w){}
 	};
 
 	class IScene {
