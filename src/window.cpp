@@ -1,7 +1,7 @@
 #include "../include/fatum/window.h"
 using namespace fatum;
 
-bool Window::_first_time = false;
+bool Window::_first_time = true;
 
 
 Window::operator GLFWwindow* () {
@@ -26,11 +26,12 @@ static void _glfwErrorCOUT(int err_code, const char* err_msg ) {
 #pragma endregion
 
 
-Window::Window(std::string_view name) : _render(this){
-    if (!_first_time) {
-        _first_time = true;
-        glfwSetErrorCallback(&_glfwErrorCOUT);
+Window::Window(std::string_view name){
+    if (_first_time) {
+        _first_time = false;
+      
         if (!glfwInit()) exit(-10);
+        glfwSetErrorCallback(&_glfwErrorCOUT);
 
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
@@ -45,12 +46,13 @@ Window::Window(std::string_view name) : _render(this){
         glfwTerminate();
         exit(-100);
     }
+    glfwMakeContextCurrent(_win.get());
     glfwSetFramebufferSizeCallback(_win.get(), _frameBCallb);
     
-    if (!gladLoadGL()) exit(-100);
+    if (!gladLoadGL()) exit(-1000);
 
 
-
+    _render.setRenderTarget(*this);
     //TODO: решить, причислить ли нажатия мыши к нажатиям впринципе (merge with keyboard) \zerochar
     glfwSetCursorPosCallback(*this,
         [](GLFWwindow* win, double x, double y) {
